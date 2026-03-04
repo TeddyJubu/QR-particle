@@ -8,8 +8,8 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Retro Shader Studio",
-  description: "Apply halftone and scan line effects to your images",
+  title: "Particle QR Generator",
+  description: "Create beautiful, animated QR codes with interactive particle effects",
   generator: "v0.app",
 }
 
