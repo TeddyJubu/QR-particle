@@ -1,19 +1,23 @@
 "use client"
 
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { QRCodeInput } from "@/components/qr-code-input"
 import { QRParticleCanvas } from "@/components/qr-particle-canvas"
 import { QRControls } from "@/components/qr-controls"
 import { generateQRMatrix, formatQRData, type QRType, type WifiData, type VCardData, type EmailData, type SMSData } from "@/lib/qr-utils"
-import { Download, QrCode, Settings2, RefreshCw } from "lucide-react"
+import { useQRScanDetection } from "@/hooks/use-qr-scan-detection"
+import { Download, QrCode, Settings2, RefreshCw, Radio, RadioOff } from "lucide-react"
 
 export default function QRCodeGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrMatrix, setQrMatrix] = useState<boolean[][] | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
+  const [currentQrId, setCurrentQrId] = useState<string | null>(null)
+  const [currentTargetUrl, setCurrentTargetUrl] = useState<string | null>(null)
 
   // Particle controls
   const [particleSize, setParticleSize] = useState(8)
@@ -23,19 +27,42 @@ export default function QRCodeGenerator() {
   const [returnSpeed, setReturnSpeed] = useState(0.8)
   const [animationSpeed, setAnimationSpeed] = useState(1.5)
 
+  // Scan detection
+  const { status: scanStatus, scanCount, startListening, stopListening } = useQRScanDetection(currentQrId)
+
   const handleGenerate = useCallback(async (type: QRType, data: string | WifiData | VCardData | EmailData | SMSData) => {
     setIsGenerating(true)
+    stopListening() // Stop any existing listener
+    
     try {
       const formattedData = formatQRData(type, data)
-      const matrix = await generateQRMatrix(formattedData)
+      
+      // For URL type, create a trackable redirect URL
+      let qrData = formattedData
+      let newQrId: string | null = null
+      let targetUrl: string | null = null
+      
+      if (type === "url" && typeof data === "string") {
+        // Generate a unique ID for this QR code
+        newQrId = crypto.randomUUID()
+        targetUrl = data
+        
+        // Create trackable URL that redirects through our API
+        const origin = typeof window !== "undefined" ? window.location.origin : ""
+        qrData = `${origin}/api/qr/${newQrId}?url=${encodeURIComponent(data)}`
+      }
+      
+      const matrix = await generateQRMatrix(qrData)
       setQrMatrix(null) // Reset to trigger re-animation
+      setCurrentQrId(newQrId)
+      setCurrentTargetUrl(targetUrl)
       setTimeout(() => setQrMatrix(matrix), 50)
     } catch (error) {
       console.error("Failed to generate QR code:", error)
     } finally {
       setIsGenerating(false)
     }
-  }, [])
+  }, [stopListening])
 
   const handleReplay = useCallback(() => {
     if (qrMatrix) {
@@ -54,6 +81,16 @@ export default function QRCodeGenerator() {
     link.click()
   }, [])
 
+  const handleToggleTracking = useCallback(() => {
+    if (scanStatus === "idle") {
+      startListening()
+    } else {
+      stopListening()
+    }
+  }, [scanStatus, startListening, stopListening])
+
+  const isTrackable = currentQrId !== null
+
   return (
     <main className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 lg:py-12">
@@ -68,7 +105,7 @@ export default function QRCodeGenerator() {
             </h1>
           </div>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto text-pretty">
-            Create beautiful, animated QR codes with interactive particle effects
+            Create beautiful, animated QR codes with interactive particle effects and real-time scan detection
           </p>
         </header>
 
@@ -77,11 +114,38 @@ export default function QRCodeGenerator() {
           {/* Left Panel - QR Display */}
           <Card className="border-border/50 shadow-sm">
             <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold text-foreground">Preview</CardTitle>
-                <div className="flex gap-2">
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <div className="flex items-center gap-2">
+                  <CardTitle className="text-lg font-semibold text-foreground">Preview</CardTitle>
+                  {scanCount > 0 && (
+                    <Badge variant="secondary" className="bg-green-100 text-green-700">
+                      {scanCount} scan{scanCount !== 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex gap-2 flex-wrap">
                   {qrMatrix && (
                     <>
+                      {isTrackable && (
+                        <Button
+                          variant={scanStatus !== "idle" ? "default" : "outline"}
+                          size="sm"
+                          onClick={handleToggleTracking}
+                          className={scanStatus !== "idle" ? "bg-blue-600 hover:bg-blue-700" : ""}
+                        >
+                          {scanStatus !== "idle" ? (
+                            <>
+                              <Radio className="h-4 w-4 mr-1.5 animate-pulse" />
+                              Tracking
+                            </>
+                          ) : (
+                            <>
+                              <RadioOff className="h-4 w-4 mr-1.5" />
+                              Track Scans
+                            </>
+                          )}
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" onClick={handleReplay}>
                         <RefreshCw className="h-4 w-4 mr-1.5" />
                         Replay
@@ -94,6 +158,11 @@ export default function QRCodeGenerator() {
                   )}
                 </div>
               </div>
+              {isTrackable && currentTargetUrl && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  Redirects to: <span className="font-mono text-foreground/70">{currentTargetUrl}</span>
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               <QRParticleCanvas
@@ -105,6 +174,7 @@ export default function QRCodeGenerator() {
                 repulsionStrength={repulsionStrength}
                 returnSpeed={returnSpeed}
                 animationSpeed={animationSpeed}
+                scanStatus={scanStatus}
               />
             </CardContent>
           </Card>
@@ -150,8 +220,9 @@ export default function QRCodeGenerator() {
         </div>
 
         {/* Footer */}
-        <footer className="text-center mt-12 text-sm text-muted-foreground">
+        <footer className="text-center mt-12 text-sm text-muted-foreground space-y-1">
           <p>Hover over the QR code to see the particle interaction effect</p>
+          <p className="text-xs">URL QR codes support real-time scan detection - click "Track Scans" to enable</p>
         </footer>
       </div>
     </main>

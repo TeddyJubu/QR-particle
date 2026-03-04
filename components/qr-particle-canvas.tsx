@@ -3,6 +3,8 @@
 import { useEffect, forwardRef, useImperativeHandle, useRef, useState, useCallback } from "react"
 import { smoothNoise } from "@/lib/noise"
 
+import type { ScanStatus } from "@/hooks/use-qr-scan-detection"
+
 interface QRParticleCanvasProps {
   qrMatrix: boolean[][] | null
   particleSize: number
@@ -11,6 +13,7 @@ interface QRParticleCanvasProps {
   repulsionStrength: number
   returnSpeed: number
   animationSpeed: number
+  scanStatus?: ScanStatus
 }
 
 interface Particle {
@@ -37,7 +40,7 @@ interface TrailPoint {
 }
 
 export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasProps>(
-  ({ qrMatrix, particleSize, particleColor, mouseRadius, repulsionStrength, returnSpeed, animationSpeed }, ref) => {
+  ({ qrMatrix, particleSize, particleColor, mouseRadius, repulsionStrength, returnSpeed, animationSpeed, scanStatus = "idle" }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const particlesRef = useRef<Particle[]>([])
     const mouseRef = useRef({ x: -1000, y: -1000, prevX: -1000, prevY: -1000 })
@@ -46,7 +49,17 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
     const lastMoveTimeRef = useRef(0)
     const isFirstMoveRef = useRef(true)
     const animationStartTimeRef = useRef(0)
+    const scanStatusRef = useRef(scanStatus)
+    const successAnimationStartRef = useRef(0)
     const [canvasSize, setCanvasSize] = useState({ width: 400, height: 400 })
+
+    // Keep scanStatus ref updated
+    useEffect(() => {
+      scanStatusRef.current = scanStatus
+      if (scanStatus === "scanned") {
+        successAnimationStartRef.current = Date.now()
+      }
+    }, [scanStatus])
 
     useImperativeHandle(ref, () => canvasRef.current!)
 
@@ -284,16 +297,45 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
       )
     }
 
+    // Determine border/glow classes based on scan status
+    const getBorderClasses = () => {
+      switch (scanStatus) {
+        case "waiting":
+          return "ring-4 ring-blue-400/50 animate-pulse"
+        case "scanned":
+          return "ring-4 ring-green-500 shadow-[0_0_30px_rgba(34,197,94,0.5)]"
+        default:
+          return ""
+      }
+    }
+
     return (
-      <div className="flex items-center justify-center">
-        <canvas
-          ref={canvasRef}
-          className="cursor-crosshair rounded-xl shadow-lg"
-          style={{
-            maxWidth: "100%",
-            height: "auto",
-          }}
-        />
+      <div className="flex flex-col items-center justify-center gap-3">
+        <div className={`relative rounded-xl transition-all duration-300 ${getBorderClasses()}`}>
+          <canvas
+            ref={canvasRef}
+            className="cursor-crosshair rounded-xl shadow-lg"
+            style={{
+              maxWidth: "100%",
+              height: "auto",
+            }}
+          />
+          {scanStatus === "scanned" && (
+            <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 rounded-xl animate-in fade-in duration-300">
+              <div className="bg-green-500 text-white px-4 py-2 rounded-full font-medium shadow-lg flex items-center gap-2">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Scanned!
+              </div>
+            </div>
+          )}
+        </div>
+        {scanStatus === "waiting" && (
+          <p className="text-sm text-blue-600 font-medium animate-pulse">
+            Waiting for scan...
+          </p>
+        )}
       </div>
     )
   },
