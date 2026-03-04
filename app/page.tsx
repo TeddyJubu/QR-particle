@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef, useCallback, useMemo } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
@@ -14,10 +14,15 @@ import { Download, QrCode, Settings2, RefreshCw, Radio, RadioOff } from "lucide-
 
 export default function QRCodeGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [mounted, setMounted] = useState(false)
   const [qrMatrix, setQrMatrix] = useState<boolean[][] | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentQrId, setCurrentQrId] = useState<string | null>(null)
   const [currentTargetUrl, setCurrentTargetUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // Particle controls
   const [particleSize, setParticleSize] = useState(8)
@@ -90,6 +95,14 @@ export default function QRCodeGenerator() {
   }, [scanStatus, startListening, stopListening])
 
   const isTrackable = currentQrId !== null
+
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-background">
