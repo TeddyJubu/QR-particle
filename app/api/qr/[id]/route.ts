@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { NextRequest, NextResponse } from "next/server"
 
 export async function GET(
@@ -19,22 +19,19 @@ export async function GET(
   const ipAddress = forwardedFor?.split(",")[0].trim() || "unknown"
 
   try {
-    const supabase = await createClient()
-    
-    console.log("[v0] Logging scan for qr_id:", id, "target:", targetUrl)
+    // Use admin client to bypass RLS
+    const supabase = createAdminClient()
     
     // Log the scan
-    const { data, error } = await supabase.from("qr_scans").insert({
+    const { error } = await supabase.from("qr_scans").insert({
       qr_id: id,
       target_url: targetUrl,
       user_agent: userAgent,
       ip_address: ipAddress,
-    }).select()
+    })
     
     if (error) {
-      console.error("[v0] Supabase insert error:", error)
-    } else {
-      console.log("[v0] Scan logged successfully:", data)
+      console.error("Failed to log scan:", error)
     }
   } catch (error) {
     console.error("[v0] Failed to log scan:", error)
