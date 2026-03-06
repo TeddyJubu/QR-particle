@@ -6,11 +6,24 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
-  const searchParams = request.nextUrl.searchParams
-  const targetUrl = searchParams.get("url")
-
-  if (!targetUrl) {
+  
+  // Extract the target URL - everything after "url=" to preserve query params
+  const fullUrl = request.url
+  const urlParamIndex = fullUrl.indexOf("url=")
+  
+  if (urlParamIndex === -1) {
     return NextResponse.json({ error: "Missing target URL" }, { status: 400 })
+  }
+  
+  // Get everything after "url=" and decode it
+  const encodedUrl = fullUrl.substring(urlParamIndex + 4)
+  const targetUrl = decodeURIComponent(encodedUrl)
+  
+  // Validate it's a proper URL
+  try {
+    new URL(targetUrl)
+  } catch {
+    return NextResponse.json({ error: "Invalid target URL" }, { status: 400 })
   }
 
   // Get user agent and IP for analytics
