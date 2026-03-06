@@ -10,13 +10,15 @@ import { QRParticleCanvas } from "@/components/qr-particle-canvas"
 import { QRControls } from "@/components/qr-controls"
 import { generateQRMatrix, formatQRData, type QRType, type WifiData, type VCardData, type EmailData, type SMSData } from "@/lib/qr-utils"
 import { useQRScanDetection } from "@/hooks/use-qr-scan-detection"
-import { Download, QrCode, Settings2, RefreshCw, Radio, CircleOff } from "lucide-react"
+import { Download, QrCode, Settings2, RefreshCw, Radio, CircleOff, Fingerprint } from "lucide-react"
+import { createClient } from "@/lib/supabase/client"
 
 export default function QRCodeGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [qrMatrix, setQrMatrix] = useState<boolean[][] | null>(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [currentQrId, setCurrentQrId] = useState<string | null>(null)
+  const [currentInstanceId, setCurrentInstanceId] = useState<string | null>(null)
   const [currentTargetUrl, setCurrentTargetUrl] = useState<string | null>(null)
 
   // Particle controls
@@ -27,34 +29,48 @@ export default function QRCodeGenerator() {
   const [returnSpeed, setReturnSpeed] = useState(0.8)
   const [animationSpeed, setAnimationSpeed] = useState(1.5)
 
-  // Scan detection
-  const { status: scanStatus, scanCount, startListening, stopListening } = useQRScanDetection(currentQrId)
+  // Scan detection - now uses instance_id for unique tracking
+  const { status: scanStatus, scanCount, startListening, stopListening } = useQRScanDetection(currentInstanceId)
 
-  const handleGenerate = useCallback(async (type: QRType, data: string | WifiData | VCardData | EmailData | SMSData) => {
+  const generateUniqueQR = useCallback(async (type: QRType, data: string | WifiData | VCardData | EmailData | SMSData, isNewInstance = false) => {
     setIsGenerating(true)
     stopListening() // Stop any existing listener
     
     try {
       const formattedData = formatQRData(type, data)
       
-      // For URL type, create a trackable redirect URL
+      // For URL type, create a trackable redirect URL with unique instance
       let qrData = formattedData
-      let newQrId: string | null = null
+      let newQrId: string | null = currentQrId
+      let newInstanceId: string | null = null
       let targetUrl: string | null = null
       
       if (type === "url" && typeof data === "string") {
-        // Generate a unique ID for this QR code
-        newQrId = crypto.randomUUID()
+        // Generate a unique QR ID only for new generations (not new instances)
+        if (!isNewInstance || !currentQrId) {
+          newQrId = crypto.randomUUID()
+        }
+        // Always generate a unique instance ID
+        newInstanceId = crypto.randomUUID().slice(0, 8) // Short instance ID
         targetUrl = data
         
-        // Create trackable URL that redirects through our API
+        // Store the instance in Supabase
+        const supabase = createClient()
+        await supabase.from("qr_instances").insert({
+          qr_id: newQrId,
+          instance_id: newInstanceId,
+          target_url: targetUrl,
+        })
+        
+        // Create trackable URL with instance ID
         const origin = typeof window !== "undefined" ? window.location.origin : ""
-        qrData = `${origin}/api/qr/${newQrId}?url=${encodeURIComponent(data)}`
+        qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
       }
       
       const matrix = await generateQRMatrix(qrData)
       setQrMatrix(null) // Reset to trigger re-animation
       setCurrentQrId(newQrId)
+      setCurrentInstanceId(newInstanceId)
       setCurrentTargetUrl(targetUrl)
       setTimeout(() => setQrMatrix(matrix), 50)
     } catch (error) {
@@ -62,7 +78,17 @@ export default function QRCodeGenerator() {
     } finally {
       setIsGenerating(false)
     }
-  }, [stopListening])
+  }, [stopListening, currentQrId])
+
+  const handleGenerate = useCallback(async (type: QRType, data: string | WifiData | VCardData | EmailData | SMSData) => {
+    await generateUniqueQR(type, data, false)
+  }, [generateUniqueQR])
+
+  const handleNewInstance = useCallback(async () => {
+    if (currentTargetUrl) {
+      await generateUniqueQR("url", currentTargetUrl, true)
+    }
+  }, [generateUniqueQR, currentTargetUrl])
 
   const handleReplay = useCallback(() => {
     if (qrMatrix) {
@@ -159,9 +185,24 @@ export default function QRCodeGenerator() {
                 </div>
               </div>
               {isTrackable && currentTargetUrl && (
-                <p className="text-xs text-muted-foreground mt-2">
-                  Redirects to: <span className="font-mono text-foreground/70">{currentTargetUrl}</span>
-                </p>
+                <div className="flex items-center justify-between mt-2 gap-2">
+                  <div className="text-xs text-muted-foreground min-w-0 flex-1">
+                    <span>Instance: </span>
+                    <code className="font-mono text-foreground/70 bg-muted px-1 py-0.5 rounded">{currentInstanceId}</code>
+                    <span className="mx-1.5">→</span>
+                    <span className="font-mono text-foreground/70 truncate">{currentTargetUrl}</span>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleNewInstance}
+                    disabled={isGenerating}
+                    className="shrink-0 text-xs h-7"
+                  >
+                    <Fingerprint className="h-3.5 w-3.5 mr-1" />
+                    New Instance
+                  </Button>
+                </div>
               )}
             </CardHeader>
             <CardContent>

@@ -35,9 +35,18 @@ export async function GET(
     // Use admin client to bypass RLS
     const supabase = createAdminClient()
     
-    // Log the scan
+    // The id is now the instance_id
+    const instanceId = id
+    
+    // Mark the instance as scanned
+    await supabase.from("qr_instances").update({
+      scanned: true,
+      scanned_at: new Date().toISOString(),
+    }).eq("instance_id", instanceId)
+    
+    // Also log to qr_scans for detailed analytics
     const { error } = await supabase.from("qr_scans").insert({
-      qr_id: id,
+      qr_id: instanceId, // Use instance_id for realtime subscription matching
       target_url: targetUrl,
       user_agent: userAgent,
       ip_address: ipAddress,
@@ -47,7 +56,7 @@ export async function GET(
       console.error("Failed to log scan:", error)
     }
   } catch (error) {
-    console.error("[v0] Failed to log scan:", error)
+    console.error("Failed to log scan:", error)
     // Continue with redirect even if logging fails
   }
 
