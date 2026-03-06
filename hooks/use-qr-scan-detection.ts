@@ -25,6 +25,8 @@ export function useQRScanDetection(qrId: string | null) {
     }
 
     // Subscribe to new scans for this QR ID
+    console.log("[v0] Starting realtime subscription for qr_id:", qrId)
+    
     channelRef.current = supabase
       .channel(`qr-scans-${qrId}`)
       .on(
@@ -35,7 +37,8 @@ export function useQRScanDetection(qrId: string | null) {
           table: "qr_scans",
           filter: `qr_id=eq.${qrId}`,
         },
-        () => {
+        (payload) => {
+          console.log("[v0] Received scan event:", payload)
           setStatus("scanned")
           setScanCount((prev) => prev + 1)
           
@@ -48,7 +51,9 @@ export function useQRScanDetection(qrId: string | null) {
           }, 3000)
         }
       )
-      .subscribe()
+      .subscribe((status, err) => {
+        console.log("[v0] Subscription status:", status, err)
+      })
   }, [qrId])
 
   const stopListening = useCallback(() => {
