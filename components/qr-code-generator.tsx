@@ -10,7 +10,7 @@ import { QRParticleCanvas } from "@/components/qr-particle-canvas"
 import { QRControls } from "@/components/qr-controls"
 import { generateQRMatrix, formatQRData, type QRType, type WifiData, type VCardData, type EmailData, type SMSData } from "@/lib/qr-utils"
 import { useQRScanDetection } from "@/hooks/use-qr-scan-detection"
-import { Download, QrCode, Settings2, RefreshCw, Radio, RadioOff } from "lucide-react"
+import { Download, QrCode, Settings2, RefreshCw, Radio, CircleOff } from "lucide-react"
 
 export default function QRCodeGenerator() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -140,7 +140,7 @@ export default function QRCodeGenerator() {
                             </>
                           ) : (
                             <>
-                              <RadioOff className="h-4 w-4 mr-1.5" />
+                              <CircleOff className="h-4 w-4 mr-1.5" />
                               Track Scans
                             </>
                           )}
