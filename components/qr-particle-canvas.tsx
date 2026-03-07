@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, forwardRef, useImperativeHandle, useRef, useState, useCallback } from "react"
-import { smoothNoise } from "@/lib/noise"
 
 import type { ScanStatus } from "@/hooks/use-qr-scan-detection"
 
@@ -171,7 +170,6 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
         const timeSinceStart = (Date.now() - animationStartTimeRef.current) / 1000
         const timeSinceLastMove = Date.now() - lastMoveTimeRef.current
         const isMouseMoving = timeSinceLastMove < 100
-        const time = Date.now() * 0.001
 
         if (!isMouseMoving) {
           mouseTrailRef.current = []
@@ -192,7 +190,6 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
             // Physics-based interaction
             let totalForceX = 0
             let totalForceY = 0
-            let maxDistanceFactor = 0
 
             // Mouse trail interaction
             if (mouseTrailRef.current.length > 0) {
@@ -201,19 +198,12 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
                 const dy = trailPoint.y - particle.y
                 const distance = Math.sqrt(dx * dx + dy * dy)
 
-                if (distance < mouseRadius * 1.5 && distance > 0.1) {
-                  const noiseValue = smoothNoise(particle.baseX, particle.baseY, 0.02, time)
-                  const irregularRadius = mouseRadius * (0.7 + noiseValue * 0.6)
-
-                  if (distance < irregularRadius) {
-                    const distanceFactor = 1 - distance / irregularRadius
-                    const smoothFactor = distanceFactor * distanceFactor * (3 - 2 * distanceFactor)
-                    maxDistanceFactor = Math.max(maxDistanceFactor, smoothFactor)
-
-                    const force = repulsionStrength * smoothFactor * trailPoint.strength * 0.5
-                    totalForceX -= (dx / distance) * force
-                    totalForceY -= (dy / distance) * force
-                  }
+                if (distance < mouseRadius && distance > 0.1) {
+                  const distanceFactor = 1 - distance / mouseRadius
+                  const smoothFactor = distanceFactor * distanceFactor
+                  const force = repulsionStrength * smoothFactor * trailPoint.strength * 0.15
+                  totalForceX -= (dx / distance) * force
+                  totalForceY -= (dy / distance) * force
                 }
               })
             }
@@ -224,41 +214,29 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
             const distance = Math.sqrt(dx * dx + dy * dy)
 
             if (distance < mouseRadius && distance > 0.1) {
-              const noiseValue = smoothNoise(particle.baseX, particle.baseY, 0.02, time)
-              const irregularRadius = mouseRadius * (0.7 + noiseValue * 0.6)
-
-              if (distance < irregularRadius) {
-                const distanceFactor = 1 - distance / irregularRadius
-                const smoothFactor = distanceFactor * distanceFactor * (3 - 2 * distanceFactor)
-                maxDistanceFactor = Math.max(maxDistanceFactor, smoothFactor)
-
-                const force = repulsionStrength * smoothFactor * 0.3
-                totalForceX -= (dx / distance) * force
-                totalForceY -= (dy / distance) * force
-              }
+              const distanceFactor = 1 - distance / mouseRadius
+              const smoothFactor = distanceFactor * distanceFactor
+              const force = repulsionStrength * smoothFactor * 0.1
+              totalForceX -= (dx / distance) * force
+              totalForceY -= (dy / distance) * force
             }
 
             // Apply forces
             particle.vx += totalForceX
             particle.vy += totalForceY
 
-            // Return to base position
-            const returnForceX = (particle.baseX - particle.x) * returnSpeed * 0.1
-            const returnForceY = (particle.baseY - particle.y) * returnSpeed * 0.1
+            // Strong return to base position - snaps back quickly
+            const returnForceX = (particle.baseX - particle.x) * returnSpeed * 0.25
+            const returnForceY = (particle.baseY - particle.y) * returnSpeed * 0.25
             particle.vx += returnForceX
             particle.vy += returnForceY
 
-            // Damping
-            particle.vx *= 0.85
-            particle.vy *= 0.85
+            // Heavy damping so particles settle fast
+            particle.vx *= 0.7
+            particle.vy *= 0.7
 
             particle.x += particle.vx
             particle.y += particle.vy
-
-            // Twinkle effect when interacting
-            if (maxDistanceFactor > 0) {
-              particle.twinklePhase += particle.twinkleSpeed
-            }
           }
 
           // Draw particle
@@ -301,7 +279,7 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
     const getBorderClasses = () => {
       switch (scanStatus) {
         case "waiting":
-          return "ring-4 ring-blue-400/50 animate-pulse"
+          return "ring-2 ring-blue-400/60"
         case "scanned":
           return "ring-4 ring-green-500 shadow-[0_0_30px_rgba(34,197,94,0.5)]"
         default:
@@ -310,15 +288,12 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
     }
 
     return (
-      <div className="flex flex-col items-center justify-center gap-3">
-        <div className={`relative rounded-xl transition-all duration-300 ${getBorderClasses()}`}>
+      <div className="flex flex-col items-center justify-center gap-2">
+        <div className={`relative rounded-xl transition-all duration-500 ${getBorderClasses()}`}>
           <canvas
             ref={canvasRef}
             className="cursor-crosshair rounded-xl shadow-lg"
-            style={{
-              maxWidth: "100%",
-              height: "auto",
-            }}
+            style={{ maxWidth: "100%", height: "auto" }}
           />
           {scanStatus === "scanned" && (
             <div className="absolute inset-0 flex items-center justify-center bg-green-500/20 rounded-xl animate-in fade-in duration-300">
@@ -332,7 +307,7 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
           )}
         </div>
         {scanStatus === "waiting" && (
-          <p className="text-sm text-blue-600 font-medium animate-pulse">
+          <p className="text-xs text-blue-500 font-medium tracking-wide">
             Waiting for scan...
           </p>
         )}
