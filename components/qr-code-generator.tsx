@@ -456,10 +456,21 @@ export default function QRCodeGenerator() {
           </Card>
         </div>
 
-        <footer className="text-center mt-12 text-sm text-muted-foreground space-y-1">
+        <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
           <p>Hover over the QR code to interact with the particles</p>
           <p className="text-xs">
             AI generates 3 styled versions after each QR code — select one and download as a merged image
+          </p>
+          <p className="text-xs pt-1">
+            AI themes &amp; backgrounds powered by{" "}
+            <a
+              href="https://pollinations.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              pollinations.ai
+            </a>
           </p>
         </footer>
       </div>
