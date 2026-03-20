@@ -1,35 +1,129 @@
-# v0-QR-particle
+# Particle QR Generator
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Next.js](https://img.shields.io/badge/Next.js-15-black?logo=next.js)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org)
 
-## Built with v0
+A Next.js web application that generates QR codes rendered as interactive, physics-based particle systems. Particles animate from random positions into formation, react to mouse movement with repulsion physics, and return smoothly to their rest positions. URL-type QR codes support real-time scan detection via Supabase Realtime.
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+## Features
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_EqxIepsyfNPIMInlYTz4lgYVoKjR)
+- **Animated particle QR codes** — particles assemble from scattered positions using an eased entrance animation with a wave delay effect.
+- **Interactive physics** — hover over the canvas to repel particles; they spring back to their base positions using a damped velocity model.
+- **Seven QR content types** — URL, plain text, WiFi credentials, email (with subject and body), phone number, SMS, and vCard contact.
+- **Real-time scan detection** — URL QR codes embed a unique instance ID and a redirect endpoint. Enabling "Track Scans" opens a Supabase Realtime subscription so the UI updates instantly when the code is scanned.
+- **New Instance** — generate a fresh tracking ID for the same URL without changing the destination, useful for measuring distinct distribution channels.
+- **Customisable style** — sliders control particle size, color, mouse interaction radius, repulsion strength, return speed, and animation speed.
+- **PNG download** — export the current canvas state at full resolution.
+- **Dark/light theme** — inherits the system preference via `next-themes`.
+
+## Tech Stack
+
+| Layer | Library |
+|---|---|
+| Framework | [Next.js 15](https://nextjs.org) (App Router) |
+| Language | [TypeScript 5](https://www.typescriptlang.org) |
+| Styling | [Tailwind CSS v4](https://tailwindcss.com) |
+| UI Components | [shadcn/ui](https://ui.shadcn.com) + [Radix UI](https://www.radix-ui.com) |
+| QR generation | [qrcode](https://github.com/soldair/node-qrcode) |
+| Database / Realtime | [Supabase](https://supabase.com) |
+| Analytics | [Vercel Analytics](https://vercel.com/analytics) |
+| Fonts | Geist, Geist Mono |
+
+## Prerequisites
+
+- [Node.js](https://nodejs.org) 18 or later
+- [pnpm](https://pnpm.io) (recommended) — or npm / yarn
+- A [Supabase](https://supabase.com) project (required only for scan-tracking features; the generator works without it)
 
 ## Getting Started
 
-First, run the development server:
+### 1. Clone and install
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+git clone https://github.com/TeddyJubu/v0-QR-particle.git
+cd v0-QR-particle
+pnpm install
+```
+
+### 2. Configure environment variables
+
+Create a `.env.local` file in the project root:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+```
+
+> **Note:** If you do not need scan tracking, you can skip this step. The QR generator and particle animation will work without a Supabase connection.
+
+### 3. Set up the database (optional — for scan tracking)
+
+Run the SQL migration scripts in order from the [`scripts/`](scripts/) directory against your Supabase project:
+
+```bash
+# In the Supabase SQL editor or via the CLI:
+scripts/001_create_qr_scans.sql
+scripts/002_enable_realtime.sql
+scripts/003_create_qr_instances.sql
+```
+
+These scripts create the `qr_scans` and `qr_instances` tables, configure Row Level Security policies, and enable Supabase Realtime on both tables.
+
+### 4. Run the development server
+
+```bash
 pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-## Learn More
+1. **Select a QR content type** from the *Content* tab (URL, Text, WiFi, Email, Phone, SMS, or Contact).
+2. **Fill in the required fields** and click **Generate QR Code**.
+3. **Hover** over the canvas to interact with the particle simulation.
+4. Use the **Style** tab to adjust particle appearance and physics parameters.
+5. Click **Replay** to restart the entrance animation, or **Download** to save the QR code as a PNG.
+6. For URL codes, click **Track Scans** to start a real-time listener. The badge in the header updates each time the code is scanned. Use **New Instance** to issue a fresh tracking ID for the same destination URL.
 
-To learn more, take a look at the following resources:
+## Project Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+```
+.
+├── app/
+│   ├── globals.css          # Global styles
+│   ├── layout.tsx           # Root layout and metadata
+│   └── page.tsx             # Entry point (lazy-loads QRCodeGenerator)
+├── components/
+│   ├── qr-code-generator.tsx  # Main application component
+│   ├── qr-particle-canvas.tsx # Canvas renderer and particle physics
+│   ├── qr-code-input.tsx      # Content-type form
+│   ├── qr-controls.tsx        # Style/physics sliders
+│   └── ...                    # shadcn/ui wrappers
+├── hooks/
+│   ├── use-qr-scan-detection.ts  # Supabase Realtime subscription
+│   └── ...
+├── lib/
+│   ├── qr-utils.ts          # QR matrix generation and data formatting
+│   ├── noise.ts             # Noise utilities
+│   └── utils.ts             # Shared helpers
+└── scripts/
+    ├── 001_create_qr_scans.sql
+    ├── 002_enable_realtime.sql
+    └── 003_create_qr_instances.sql
+```
 
-<a href="https://v0.app/chat/api/kiro/clone/TeddyJubu/v0-QR-particle" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+## Contributing
+
+Contributions are welcome. Please open an issue to discuss your idea before submitting a pull request.
+
+1. Fork the repository.
+2. Create a feature branch: `git checkout -b feat/your-feature`.
+3. Commit your changes: `git commit -m "feat: add your feature"`.
+4. Push the branch: `git push origin feat/your-feature`.
+5. Open a pull request against `main`.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).
