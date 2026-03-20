@@ -41,7 +41,7 @@ export default function QRCodeGenerator() {
       
       // For URL type, create a trackable redirect URL with unique instance
       let qrData = formattedData
-      let newQrId: string | null = null
+      let newQrId: string | null = currentQrId
       let newInstanceId: string | null = null
       let targetUrl: string | null = null
       
@@ -49,8 +49,6 @@ export default function QRCodeGenerator() {
         // Generate a unique QR ID only for new generations (not new instances)
         if (!isNewInstance || !currentQrId) {
           newQrId = crypto.randomUUID()
-        } else {
-          newQrId = currentQrId
         }
         // Always generate a unique instance ID
         newInstanceId = crypto.randomUUID().slice(0, 8) // Short instance ID
@@ -73,7 +71,8 @@ export default function QRCodeGenerator() {
           const origin = typeof window !== "undefined" ? window.location.origin : ""
           qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
         } catch (error) {
-          console.warn("Failed to create trackable URL instance, falling back to plain URL QR code:", error)
+          console.warn("Failed to create trackable redirect URL, generating QR with direct URL instead:", error)
+          qrData = formattedData
           newQrId = null
           newInstanceId = null
           targetUrl = null
