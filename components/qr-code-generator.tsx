@@ -41,14 +41,29 @@ export default function QRCodeGenerator() {
       
       // For URL type, create a trackable redirect URL with unique instance
       let qrData = formattedData
-      let newQrId: string | null = currentQrId
+      let newQrId: string | null = null
       let newInstanceId: string | null = null
       let targetUrl: string | null = null
       
       if (type === "url" && typeof data === "string") {
+        const hasSupabaseClientConfig =
+          Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)
+
+        if (!hasSupabaseClientConfig) {
+          const matrix = await generateQRMatrix(formattedData)
+          setQrMatrix(null) // Reset to trigger re-animation
+          setCurrentQrId(null)
+          setCurrentInstanceId(null)
+          setCurrentTargetUrl(null)
+          setTimeout(() => setQrMatrix(matrix), 50)
+          return
+        }
+
         // Generate a unique QR ID only for new generations (not new instances)
         if (!isNewInstance || !currentQrId) {
           newQrId = crypto.randomUUID()
+        } else {
+          newQrId = currentQrId
         }
         // Always generate a unique instance ID
         newInstanceId = crypto.randomUUID().slice(0, 8) // Short instance ID
@@ -56,15 +71,22 @@ export default function QRCodeGenerator() {
         
         // Store the instance in Supabase
         const supabase = createClient()
-        await supabase.from("qr_instances").insert({
+        const { error } = await supabase.from("qr_instances").insert({
           qr_id: newQrId,
           instance_id: newInstanceId,
           target_url: targetUrl,
         })
-        
-        // Create trackable URL with instance ID
-        const origin = typeof window !== "undefined" ? window.location.origin : ""
-        qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
+
+        if (error) {
+          console.error("Failed to create trackable URL instance:", error)
+          newQrId = null
+          newInstanceId = null
+          targetUrl = null
+        } else {
+          // Create trackable URL with instance ID
+          const origin = typeof window !== "undefined" ? window.location.origin : ""
+          qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
+        }
       }
       
       const matrix = await generateQRMatrix(qrData)
