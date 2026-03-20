@@ -13,6 +13,7 @@ interface QRParticleCanvasProps {
   returnSpeed: number
   animationSpeed: number
   scanStatus?: ScanStatus
+  transparent?: boolean
 }
 
 interface Particle {
@@ -39,7 +40,7 @@ interface TrailPoint {
 }
 
 export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasProps>(
-  ({ qrMatrix, particleSize, particleColor, mouseRadius, repulsionStrength, returnSpeed, animationSpeed, scanStatus = "idle" }, ref) => {
+  ({ qrMatrix, particleSize, particleColor, mouseRadius, repulsionStrength, returnSpeed, animationSpeed, scanStatus = "idle", transparent = false }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const particlesRef = useRef<Particle[]>([])
     const mouseRef = useRef({ x: -1000, y: -1000, prevX: -1000, prevY: -1000 })
@@ -164,8 +165,12 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
       animationStartTimeRef.current = Date.now()
 
       const animate = () => {
-        ctx.fillStyle = "#fafafa"
-        ctx.fillRect(0, 0, totalSize, totalSize)
+        if (transparent) {
+          ctx.clearRect(0, 0, totalSize, totalSize)
+        } else {
+          ctx.fillStyle = "#fafafa"
+          ctx.fillRect(0, 0, totalSize, totalSize)
+        }
 
         const timeSinceStart = (Date.now() - animationStartTimeRef.current) / 1000
         const timeSinceLastMove = Date.now() - lastMoveTimeRef.current
@@ -262,7 +267,7 @@ export const QRParticleCanvas = forwardRef<HTMLCanvasElement, QRParticleCanvasPr
         }
         canvas.removeEventListener("mousemove", handleMouseMove)
       }
-    }, [qrMatrix, particleSize, particleColor, mouseRadius, repulsionStrength, returnSpeed, animationSpeed, handleMouseMove])
+    }, [qrMatrix, particleSize, particleColor, mouseRadius, repulsionStrength, returnSpeed, animationSpeed, handleMouseMove, transparent])
 
     if (!qrMatrix) {
       return (
