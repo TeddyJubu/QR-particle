@@ -65,7 +65,7 @@ SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 >
 > If you need a URL QR without Supabase, use the **Text** type and paste the URL there (this skips redirect-based tracking).
 
-### 3. Set up the database (optional — for scan tracking)
+### 3. Set up the database (required for URL-type QR codes and scan tracking)
 
 Run the SQL migration scripts in order from the [`scripts/`](scripts/) directory against your Supabase project:
 
