@@ -53,18 +53,34 @@ export default function QRCodeGenerator() {
         // Always generate a unique instance ID
         newInstanceId = crypto.randomUUID().slice(0, 8) // Short instance ID
         targetUrl = data
-        
-        // Store the instance in Supabase
-        const supabase = createClient()
-        await supabase.from("qr_instances").insert({
-          qr_id: newQrId,
-          instance_id: newInstanceId,
-          target_url: targetUrl,
-        })
-        
-        // Create trackable URL with instance ID
-        const origin = typeof window !== "undefined" ? window.location.origin : ""
-        qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
+
+        try {
+          // Store the instance in Supabase
+          const supabase = createClient()
+          const { error } = await supabase.from("qr_instances").insert({
+            qr_id: newQrId,
+            instance_id: newInstanceId,
+            target_url: targetUrl,
+          })
+
+          if (error) {
+            throw error
+          }
+
+          // Create trackable URL with instance ID
+          const origin = typeof window !== "undefined" ? window.location.origin : ""
+          qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
+        } catch (error) {
+          const errorDetails = error instanceof Error ? error.message : String(error)
+          console.warn(
+            "Failed to create trackable redirect URL (check Supabase env/config and qr_instances access), generating QR with direct URL instead:",
+            errorDetails
+          )
+          qrData = formattedData
+          newQrId = null
+          newInstanceId = null
+          targetUrl = null
+        }
       }
       
       const matrix = await generateQRMatrix(qrData)

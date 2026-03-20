@@ -34,7 +34,7 @@ A Next.js web application that generates QR codes rendered as interactive, physi
 
 - [Node.js](https://nodejs.org) 18 or later
 - [pnpm](https://pnpm.io) (recommended) — or npm / yarn
-- A [Supabase](https://supabase.com) project (required only for scan-tracking features; the generator works without it)
+- A [Supabase](https://supabase.com) project (required for URL-type QR codes and scan tracking; non-URL QR types still work without it)
 
 ## Getting Started
 
@@ -53,11 +53,19 @@ Create a `.env.local` file in the project root:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://<your-project>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<your-anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<your-service-role-key>
 ```
 
-> **Note:** If you do not need scan tracking, you can skip this step. The QR generator and particle animation will work without a Supabase connection.
+> **Important:** `SUPABASE_SERVICE_ROLE_KEY` must stay server-side only. Do **not** expose it as a `NEXT_PUBLIC_*` variable.
+>
+> **Supabase requirement details:**
+> - **URL-type QR code generation** (stored `qr_instances` + redirect URL creation) requires `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+> - **Scan logging via** `/api/qr/[id]` requires `SUPABASE_SERVICE_ROLE_KEY`.
+> - **Non-URL QR types** (Text, WiFi, Email, Phone, SMS, Contact) work without Supabase.
+>
+> If you need a URL QR without Supabase, use the **Text** type and paste the URL there (this skips redirect-based tracking).
 
-### 3. Set up the database (optional — for scan tracking)
+### 3. Set up the database (required for URL-type QR codes and scan tracking)
 
 Run the SQL migration scripts in order from the [`scripts/`](scripts/) directory against your Supabase project:
 
