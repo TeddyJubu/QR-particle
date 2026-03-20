@@ -71,7 +71,11 @@ export default function QRCodeGenerator() {
           const origin = typeof window !== "undefined" ? window.location.origin : ""
           qrData = `${origin}/api/qr/${newInstanceId}?url=${encodeURIComponent(data)}`
         } catch (error) {
-          console.warn("Failed to create trackable redirect URL, generating QR with direct URL instead:", error)
+          const errorDetails = error instanceof Error ? error.message : String(error)
+          console.warn(
+            "Failed to create trackable redirect URL (check Supabase env/config and qr_instances access), generating QR with direct URL instead:",
+            errorDetails
+          )
           qrData = formattedData
           newQrId = null
           newInstanceId = null
