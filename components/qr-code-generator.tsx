@@ -51,6 +51,10 @@ export default function QRCodeGenerator() {
   const [selectedThemeIndex, setSelectedThemeIndex] = useState(0)
   const [isGeneratingTheme, setIsGeneratingTheme] = useState(false)
   const [themeError, setThemeError] = useState<string | null>(null)
+  const [lastQrPayload, setLastQrPayload] = useState<{
+    content: string | WifiData | VCardData | EmailData | SMSData
+    type: QRType
+  } | null>(null)
 
   const { status: scanStatus, scanCount, startListening, stopListening } =
     useQRScanDetection(currentInstanceId)
@@ -113,14 +117,19 @@ export default function QRCodeGenerator() {
       const ctx = tempCanvas.getContext("2d")
       if (!ctx) return
 
-      const img = new Image()
-      img.src = theme.backgroundUrl
-      await new Promise<void>((resolve) => {
-        img.onload = () => resolve()
-        img.onerror = () => resolve()
-      })
+      if (theme.backgroundUrl) {
+        const img = new Image()
+        img.src = theme.backgroundUrl
+        await new Promise<void>((resolve) => {
+          img.onload = () => resolve()
+          img.onerror = () => resolve()
+        })
+        ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
+      } else {
+        ctx.fillStyle = "#ffffff"
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height)
+      }
 
-      ctx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height)
       ctx.drawImage(particleCanvas, 0, 0)
 
       const link = document.createElement("a")
@@ -187,16 +196,15 @@ export default function QRCodeGenerator() {
         setCurrentTargetUrl(targetUrl)
         setAiThemes(null)
         setThemeError(null)
+        setLastQrPayload({ content: data, type })
         setTimeout(() => setQrMatrix(matrix), 50)
-
-        generateThemes(data, type)
       } catch (error) {
         console.error("Failed to generate QR code:", error)
       } finally {
         setIsGenerating(false)
       }
     },
-    [stopListening, currentQrId, generateThemes]
+    [stopListening, currentQrId]
   )
 
   const handleGenerate = useCallback(
@@ -211,6 +219,12 @@ export default function QRCodeGenerator() {
       await generateUniqueQR("url", currentTargetUrl, true)
     }
   }, [generateUniqueQR, currentTargetUrl])
+
+  const handleGenerateAIBackgrounds = useCallback(() => {
+    if (lastQrPayload) {
+      generateThemes(lastQrPayload.content, lastQrPayload.type)
+    }
+  }, [lastQrPayload, generateThemes])
 
   const handleReplay = useCallback(() => {
     if (qrMatrix) {
@@ -342,7 +356,7 @@ export default function QRCodeGenerator() {
                 )}
               </CardHeader>
               <CardContent>
-                {activeTheme ? (
+                {activeTheme?.backgroundUrl ? (
                   <div className="relative rounded-xl overflow-hidden">
                     <img
                       src={activeTheme.backgroundUrl}
@@ -386,21 +400,26 @@ export default function QRCodeGenerator() {
               <Card className="border-border/50 shadow-sm">
                 <CardContent className="pt-5">
                   {isGeneratingTheme ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-6 text-muted-foreground">
+                    <div className="flex flex-col items-center justify-center gap-3 py-8 text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
                         <Sparkles className="h-4 w-4 text-primary animate-pulse" />
                       </div>
-                      <p className="text-sm font-medium">AI is designing your QR backgrounds…</p>
+                      <p className="text-sm font-medium">AI is designing your backgrounds…</p>
                       <p className="text-xs text-muted-foreground/70">Generating color themes &amp; images</p>
                     </div>
                   ) : themeError ? (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-destructive mb-2">{themeError}</p>
-                      <p className="text-xs text-muted-foreground">
-                        Set <code className="bg-muted px-1 rounded">POLLINATIONS_API_KEY</code> in{" "}
-                        <code className="bg-muted px-1 rounded">.env.local</code> to enable AI themes.
-                      </p>
+                    <div className="flex flex-col items-center gap-3 py-6 text-center">
+                      <p className="text-sm text-destructive">{themeError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleGenerateAIBackgrounds}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5" />
+                        Retry
+                      </Button>
                     </div>
                   ) : aiThemes ? (
                     <QRVersionPicker
@@ -410,8 +429,24 @@ export default function QRCodeGenerator() {
                       selectedIndex={selectedThemeIndex}
                       onSelect={handleThemeSelect}
                       onDownload={downloadComposite}
+                      onRegenerate={handleGenerateAIBackgrounds}
                     />
-                  ) : null}
+                  ) : (
+                    <div className="flex flex-col items-center gap-3 py-6">
+                      <div className="flex flex-col items-center gap-1 text-center">
+                        <p className="text-sm font-medium text-foreground">Want AI-styled versions?</p>
+                        <p className="text-xs text-muted-foreground">Generate 2 unique AI backgrounds for your QR</p>
+                      </div>
+                      <Button
+                        onClick={handleGenerateAIBackgrounds}
+                        className="gap-2"
+                        disabled={!lastQrPayload}
+                      >
+                        <Sparkles className="h-4 w-4" />
+                        Generate AI Backgrounds
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -459,7 +494,7 @@ export default function QRCodeGenerator() {
         <footer className="text-center mt-12 text-sm text-muted-foreground space-y-2">
           <p>Hover over the QR code to interact with the particles</p>
           <p className="text-xs">
-            AI generates 3 styled versions after each QR code — select one and download as a merged image
+            Optionally generate 3 styled versions with AI backgrounds — select one and download as a merged image
           </p>
           <p className="text-xs pt-1">
             AI themes &amp; backgrounds powered by{" "}

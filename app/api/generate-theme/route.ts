@@ -4,7 +4,7 @@ export interface AITheme {
   name: string
   foreground: string
   imagePrompt: string
-  backgroundUrl: string
+  backgroundUrl: string | null
   seed: number
 }
 
@@ -32,10 +32,9 @@ For each theme:
 2. Write a vivid, artistic image generation prompt (12-18 words) for the background that is tonally consistent with the particle color
 3. Ensure the image has relatively uniform brightness so particles remain scannable across the whole QR code
 
-Theme mood guidelines:
-- Theme 1: Elegant & minimal (e.g. soft atmospheric, monochrome — use light particles on dark bg OR dark on light)
-- Theme 2: Vibrant & bold (e.g. rich colors, dramatic lighting — strong contrast)
-- Theme 3: Artistic & unique (e.g. painterly, abstract, unexpected — surprising but beautiful)
+Theme mood guidelines (generate exactly 2 themes):
+- Theme 1: Vibrant & bold (e.g. rich colors, dramatic lighting — strong contrast)
+- Theme 2: Artistic & unique (e.g. painterly, abstract, unexpected — surprising but beautiful)
 
 Critical contrast rule:
 - If the background image will be dark (night, deep sea, dark forest), use a LIGHT particle color (#ffffff or light hex)
@@ -125,8 +124,15 @@ Return ONLY this JSON (no markdown, no explanation, no code fences):
       )
     }
 
-    // Build themes with proxied background image URLs
-    const themes: AITheme[] = parsed.themes.slice(0, 3).map((theme) => {
+    const pureTheme: AITheme = {
+      name: "Pure QR",
+      foreground: "#0f172a",
+      imagePrompt: "",
+      backgroundUrl: null,
+      seed: 0,
+    }
+
+    const aiThemes: AITheme[] = parsed.themes.slice(0, 2).map((theme) => {
       const seed =
         typeof theme.seed === "number" && theme.seed > 0
           ? theme.seed
@@ -138,7 +144,6 @@ Return ONLY this JSON (no markdown, no explanation, no code fences):
         ? theme.foreground
         : "#ffffff"
 
-      // Background URL is our own proxy route — no key exposed to client
       const backgroundUrl = `/api/bg-image?prompt=${encodeURIComponent(imagePrompt)}&seed=${seed}`
 
       return {
@@ -150,17 +155,18 @@ Return ONLY this JSON (no markdown, no explanation, no code fences):
       }
     })
 
-    // Pad to exactly 3 themes if AI returned fewer
-    while (themes.length < 3) {
+    while (aiThemes.length < 2) {
       const seed = Math.floor(Math.random() * 99999)
-      themes.push({
-        name: `Theme ${themes.length + 1}`,
-        foreground: themes.length === 0 ? "#ffffff" : "#1a1a2e",
+      aiThemes.push({
+        name: `Theme ${aiThemes.length + 2}`,
+        foreground: "#ffffff",
         imagePrompt: "abstract gradient fluid art, pastel tones",
         backgroundUrl: `/api/bg-image?prompt=${encodeURIComponent("abstract gradient fluid art, pastel tones")}&seed=${seed}`,
         seed,
       })
     }
+
+    const themes = [pureTheme, ...aiThemes]
 
     return NextResponse.json({ themes })
   } catch (error) {

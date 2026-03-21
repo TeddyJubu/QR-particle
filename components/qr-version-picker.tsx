@@ -1,14 +1,14 @@
 "use client"
 
 import { useEffect, useRef, useCallback } from "react"
-import { Download, Check } from "lucide-react"
+import { Download, Check, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 export interface AITheme {
   name: string
   foreground: string
   imagePrompt: string
-  backgroundUrl: string
+  backgroundUrl: string | null
   seed: number
 }
 
@@ -19,6 +19,7 @@ interface QRVersionPickerProps {
   selectedIndex: number
   onSelect: (index: number) => void
   onDownload: (index: number) => void
+  onRegenerate: () => void
 }
 
 function StaticQRPreview({
@@ -29,10 +30,28 @@ function StaticQRPreview({
 }: {
   qrMatrix: boolean[][]
   foreground: string
-  backgroundUrl: string
+  backgroundUrl: string | null
   size?: number
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+
+  const drawDots = useCallback(
+    (ctx: CanvasRenderingContext2D, matrixSize: number, moduleSize: number, padding: number) => {
+      ctx.fillStyle = foreground
+      for (let row = 0; row < matrixSize; row++) {
+        for (let col = 0; col < matrixSize; col++) {
+          if (qrMatrix[row][col]) {
+            const x = padding + col * moduleSize + moduleSize / 2
+            const y = padding + row * moduleSize + moduleSize / 2
+            ctx.beginPath()
+            ctx.arc(x, y, (moduleSize * 0.85) / 2, 0, Math.PI * 2)
+            ctx.fill()
+          }
+        }
+      }
+    },
+    [qrMatrix, foreground]
+  )
 
   const render = useCallback(() => {
     const canvas = canvasRef.current
@@ -44,44 +63,28 @@ function StaticQRPreview({
     const padding = 10
     const moduleSize = (size - padding * 2) / matrixSize
 
+    if (!backgroundUrl) {
+      ctx.clearRect(0, 0, size, size)
+      ctx.fillStyle = "#ffffff"
+      ctx.fillRect(0, 0, size, size)
+      drawDots(ctx, matrixSize, moduleSize, padding)
+      return
+    }
+
     const img = new Image()
     img.onload = () => {
       ctx.clearRect(0, 0, size, size)
       ctx.drawImage(img, 0, 0, size, size)
-
-      ctx.fillStyle = foreground
-      for (let row = 0; row < matrixSize; row++) {
-        for (let col = 0; col < matrixSize; col++) {
-          if (qrMatrix[row][col]) {
-            const x = padding + col * moduleSize + moduleSize / 2
-            const y = padding + row * moduleSize + moduleSize / 2
-            ctx.beginPath()
-            ctx.arc(x, y, (moduleSize * 0.85) / 2, 0, Math.PI * 2)
-            ctx.fill()
-          }
-        }
-      }
+      drawDots(ctx, matrixSize, moduleSize, padding)
     }
     img.onerror = () => {
       ctx.clearRect(0, 0, size, size)
       ctx.fillStyle = "#1a1a1a"
       ctx.fillRect(0, 0, size, size)
-
-      ctx.fillStyle = foreground
-      for (let row = 0; row < matrixSize; row++) {
-        for (let col = 0; col < matrixSize; col++) {
-          if (qrMatrix[row][col]) {
-            const x = padding + col * moduleSize + moduleSize / 2
-            const y = padding + row * moduleSize + moduleSize / 2
-            ctx.beginPath()
-            ctx.arc(x, y, (moduleSize * 0.85) / 2, 0, Math.PI * 2)
-            ctx.fill()
-          }
-        }
-      }
+      drawDots(ctx, matrixSize, moduleSize, padding)
     }
     img.src = backgroundUrl
-  }, [qrMatrix, foreground, backgroundUrl, size])
+  }, [qrMatrix, backgroundUrl, size, drawDots])
 
   useEffect(() => {
     render()
@@ -103,15 +106,25 @@ export function QRVersionPicker({
   selectedIndex,
   onSelect,
   onDownload,
+  onRegenerate,
 }: QRVersionPickerProps) {
   return (
-    <div className="mt-6">
+    <div className="mt-2">
       <div className="flex items-center gap-2 mb-3">
         <div className="h-px flex-1 bg-border" />
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2">
-          3 AI-Generated Versions
+          3 Style Versions
         </span>
         <div className="h-px flex-1 bg-border" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground hover:text-foreground flex-shrink-0"
+          onClick={onRegenerate}
+          title="Regenerate AI backgrounds"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </Button>
       </div>
 
       <div className="grid grid-cols-3 gap-3">
