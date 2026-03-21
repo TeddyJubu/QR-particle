@@ -14,7 +14,7 @@ export interface AITheme {
 
 interface QRVersionPickerProps {
   themes: AITheme[]
-  qrMatrix: boolean[][]
+  qrMatrix: boolean[][] | null
   particleSize: number
   selectedIndex: number
   onSelect: (index: number) => void
@@ -28,7 +28,7 @@ function StaticQRPreview({
   backgroundUrl,
   size = 200,
 }: {
-  qrMatrix: boolean[][]
+  qrMatrix: boolean[][] | null
   foreground: string
   backgroundUrl: string | null
   size?: number
@@ -37,6 +37,7 @@ function StaticQRPreview({
 
   const drawDots = useCallback(
     (ctx: CanvasRenderingContext2D, matrixSize: number, moduleSize: number, padding: number) => {
+      if (!qrMatrix) return
       ctx.fillStyle = foreground
       for (let row = 0; row < matrixSize; row++) {
         for (let col = 0; col < matrixSize; col++) {
@@ -58,6 +59,7 @@ function StaticQRPreview({
     if (!canvas) return
     const ctx = canvas.getContext("2d")
     if (!ctx) return
+    if (!qrMatrix) return
 
     const matrixSize = qrMatrix.length
     const padding = 10
@@ -108,6 +110,8 @@ export function QRVersionPicker({
   onDownload,
   onRegenerate,
 }: QRVersionPickerProps) {
+  if (!qrMatrix) return null
+
   return (
     <div className="mt-2">
       <div className="flex items-center gap-2 mb-3">
