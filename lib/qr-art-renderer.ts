@@ -1,6 +1,6 @@
 import { getFinderPatternRegions } from "./qr-utils"
 
-export type ArtStyleId = "circuit-board" | "city-grid" | "topographic" | "neural-network" | "mechanical" | "organic"
+export type ArtStyleId = "circuit-board" | "city-grid" | "topographic" | "neural-network" | "mechanical" | "organic" | "galactic-stars"
 
 export interface ArtStyleConfig {
   id: ArtStyleId
@@ -13,7 +13,7 @@ export interface ArtStyleConfig {
   finderInner: string
   accentGlow: string
   // Module shape
-  moduleShape: "circle" | "rounded-rect" | "diamond" | "hexagon" | "gear" | "blob"
+  moduleShape: "circle" | "rounded-rect" | "diamond" | "hexagon" | "gear" | "blob" | "star"
   // Effects
   drawConnections: boolean
   glowIntensity: number // 0-1
@@ -98,6 +98,19 @@ const STYLE_CONFIGS: Record<ArtStyleId, ArtStyleConfig> = {
     drawConnections: false,
     glowIntensity: 0.35,
   },
+  "galactic-stars": {
+    id: "galactic-stars",
+    name: "Galactic Stars",
+    background: "#020617",
+    darkModule: "#e0f2fe",
+    lightModule: "transparent",
+    finderOuter: "#38bdf8",
+    finderInner: "#0ea5e9",
+    accentGlow: "#7dd3fc",
+    moduleShape: "star",
+    drawConnections: false,
+    glowIntensity: 0.8,
+  },
 }
 
 export function getStyleConfig(styleId: ArtStyleId): ArtStyleConfig {
@@ -138,18 +151,18 @@ export function renderArtisticQR(
   const totalModules = matrixSize + quietZone * 2
   const modulePixelSize = canvasPixelSize / totalModules
   const offset = quietZone * modulePixelSize
+  const cornerRadius = modulePixelSize * 2 // Overall corner radius for the QR area background
 
   // Set canvas size
   const dpr = typeof window !== "undefined" ? (window.devicePixelRatio || 1) : 1
   canvas.width = canvasPixelSize * dpr
   canvas.height = canvasPixelSize * dpr
-  canvas.style.width = `${canvasPixelSize}px`
-  canvas.style.height = `${canvasPixelSize}px`
+  // Don't override CSS display size — let the parent flex/padding control layout
   ctx.scale(dpr, dpr)
 
   // --- Background ---
-  ctx.fillStyle = "#ffffff" // White quiet zone
-  ctx.fillRect(0, 0, canvasPixelSize, canvasPixelSize)
+  // Clear the canvas to be transparent for the quiet zone (parent container will provide bg)
+  ctx.clearRect(0, 0, canvasPixelSize, canvasPixelSize)
 
   // Draw styled background within the QR area
   const qrAreaX = offset
@@ -157,7 +170,8 @@ export function renderArtisticQR(
   const qrAreaSize = matrixSize * modulePixelSize
 
   ctx.fillStyle = style.background
-  ctx.fillRect(qrAreaX, qrAreaY, qrAreaSize, qrAreaSize)
+  drawRoundedRect(ctx, qrAreaX, qrAreaY, qrAreaSize, qrAreaSize, cornerRadius)
+  ctx.fill()
 
   // Subtle background texture
   if (styleId === "circuit-board" || styleId === "city-grid") {
@@ -344,6 +358,24 @@ export function renderArtisticQR(
           ctx.fill()
           break
         }
+
+        case "star": {
+          const points = 5
+          const outerR = halfS
+          const innerR = halfS * 0.4
+          ctx.beginPath()
+          for (let i = 0; i < points * 2; i++) {
+            const angle = (Math.PI / points) * i - Math.PI / 2
+            const r = i % 2 === 0 ? outerR : innerR
+            const sx = cx + r * Math.cos(angle)
+            const sy = cy + r * Math.sin(angle)
+            if (i === 0) ctx.moveTo(sx, sy)
+            else ctx.lineTo(sx, sy)
+          }
+          ctx.closePath()
+          ctx.fill()
+          break
+        }
       }
 
       ctx.globalAlpha = 1
@@ -363,7 +395,20 @@ export function renderArtisticQR(
       ctx.fillStyle = style.darkModule
       ctx.beginPath()
 
-      if (style.moduleShape === "circle" || style.moduleShape === "blob") {
+      if (style.moduleShape === "star") {
+        const points = 5
+        const outerR = halfS
+        const innerR = halfS * 0.4
+        for (let i = 0; i < points * 2; i++) {
+          const angle = (Math.PI / points) * i - Math.PI / 2
+          const r = i % 2 === 0 ? outerR : innerR
+          const sx = cx + r * Math.cos(angle)
+          const sy = cy + r * Math.sin(angle)
+          if (i === 0) ctx.moveTo(sx, sy)
+          else ctx.lineTo(sx, sy)
+        }
+        ctx.closePath()
+      } else if (style.moduleShape === "circle" || style.moduleShape === "blob") {
         ctx.arc(cx, cy, halfS, 0, Math.PI * 2)
       } else {
         // Simple square for timing — maximum clarity
@@ -446,4 +491,5 @@ export const ALL_STYLE_IDS: ArtStyleId[] = [
   "neural-network",
   "mechanical",
   "organic",
+  "galactic-stars",
 ]

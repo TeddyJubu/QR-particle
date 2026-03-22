@@ -29,6 +29,7 @@ import {
   Leaf,
   ScanLine,
   CheckCircle2,
+  Star,
 } from "lucide-react"
 import Link from "next/link"
 
@@ -82,6 +83,13 @@ const STYLE_PRESETS: StylePreset[] = [
     description: "Microscopic cell tissue",
     icon: <Leaf className="h-5 w-5" />,
     color: "from-rose-600 to-fuchsia-500",
+  },
+  {
+    id: "galactic-stars",
+    name: "Galactic Stars",
+    description: "Glowing stars in deep space",
+    icon: <Star className="h-5 w-5" />,
+    color: "from-slate-900 to-blue-900",
   },
 ]
 
@@ -307,31 +315,32 @@ export default function ArtisticQRGenerator() {
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="relative aspect-square rounded-xl overflow-hidden bg-muted/30 border border-border/30">
-                  {hasGenerated ? (
+                <div 
+                  className="relative aspect-square rounded-2xl bg-background border border-border/50 shadow-inner flex items-center justify-center group transition-colors duration-500 overflow-hidden"
+                  style={hasGenerated ? { backgroundColor: activeStyleConfig.background } : {}}
+                >
+                  <div className={`w-full h-full p-3 ${!hasGenerated ? "hidden" : ""}`}>
                     <canvas
                       ref={canvasRef}
-                      className="w-full h-full"
+                      className="w-full h-full rounded-xl"
                       style={{ imageRendering: "auto" }}
                     />
-                  ) : (
-                    <>
-                      {/* Hidden canvas for rendering */}
-                      <canvas ref={canvasRef} className="hidden" />
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-                        <div className="p-3 rounded-xl bg-muted/50">
-                          <FlaskConical className="h-8 w-8 text-muted-foreground/50" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">
-                            Enter a URL and click Generate
-                          </p>
-                          <p className="text-xs text-muted-foreground/60 mt-1">
-                            Creates a scannable artistic QR code instantly
-                          </p>
-                        </div>
+                  </div>
+                  
+                  {!hasGenerated && (
+                    <div className="flex flex-col items-center justify-center gap-3 p-6 text-center">
+                      <div className="p-3 rounded-xl bg-muted/50">
+                        <FlaskConical className="h-8 w-8 text-muted-foreground/50" />
                       </div>
-                    </>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">
+                          Enter a URL and click Generate
+                        </p>
+                        <p className="text-xs text-muted-foreground/60 mt-1">
+                          Creates a scannable artistic QR code instantly
+                        </p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </CardContent>
