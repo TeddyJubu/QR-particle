@@ -29,7 +29,9 @@ import {
   Fingerprint,
   Sparkles,
   Loader2,
+  FlaskConical,
 } from "lucide-react"
+import Link from "next/link"
 import { createClient } from "@/lib/supabase/client"
 
 export default function QRCodeGenerator() {
@@ -496,6 +498,15 @@ export default function QRCodeGenerator() {
           <p className="text-xs">
             Optionally generate 3 styled versions with AI backgrounds — select one and download as a merged image
           </p>
+          <div className="pt-3">
+            <Link
+              href="/experimental"
+              className="inline-flex items-center gap-2 text-sm font-medium text-purple-500 hover:text-purple-400 transition-colors"
+            >
+              <FlaskConical className="h-4 w-4" />
+              Try QR Art Lab — AI-generated artistic QR codes
+            </Link>
+          </div>
           <p className="text-xs pt-1">
             AI themes &amp; backgrounds powered by{" "}
             <a
